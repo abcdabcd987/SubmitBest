@@ -1,0 +1,24 @@
+{{set . "title" .prob.Title}}
+{{template "header.html" .}}
+
+<h1>{{.prob.Title}}</h1>
+
+{{template "flash.html" .}}
+<form action="{{url "App.MakeDataAll"}}" method="post">
+  {{with $field := field "shortname" .}}
+    <input type="hidden" name="{{$field.Name}}" value="{{$.prob.ShortName}}">
+  {{end}}
+  {{with $field := field "reload" .}}
+  <p>
+    <strong>Generate for all users?</strong>
+    {{checkbox $field "gen for all"}}
+  </p>
+  {{end}}
+  <p class="buttons">
+    <input type="submit" value="Make Data">
+  </p>
+</form>
+
+{{raw .prob.Description}}
+
+{{template "footer.html" .}}

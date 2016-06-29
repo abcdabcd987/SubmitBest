@@ -1,0 +1,57 @@
+{{set . "title" "Management"}}
+{{template "header.html" .}}
+
+<h1>Management</h1>
+
+{{template "flash.html" .}}
+
+<h2>Refresh Problem</h2>
+<form action="{{url "App.RefreshProblem"}}" method="post">
+    {{with $field := field "shortname" .}}
+      <p class="{{$field.ErrorClass}}">
+        <strong>Shortname:</strong>
+        <input type="text" name="{{$field.Name}}" size="16" value="{{$field.Flash}}">
+        <span class="error">{{$field.Error}}</span>
+      </p>
+    {{end}}
+    <p class="buttons">
+      <input type="submit" value="Refresh">
+    </p>
+</form>
+
+<h2>Create Contest</h2>
+<form action="{{url "App.CreateContest"}}" method="post">
+    {{with $field := field "title" .}}
+      <p class="{{$field.ErrorClass}}">
+        <strong>Title:</strong>
+        <input type="text" name="{{$field.Name}}" size="16" value="{{$field.Flash}}">
+        <span class="error">{{$field.Error}}</span>
+      </p>
+    {{end}}
+    {{with $field := field "start" .}}
+      <p class="{{$field.ErrorClass}}">
+        <strong>Start Time:</strong>
+        <input type="text" name="{{$field.Name}}" size="32" placeholder="YYYY-MM-DD hh:mm:ss" value="{{$field.Flash}}">
+        <span class="error">{{$field.Error}}</span>
+      </p>
+    {{end}}
+    {{with $field := field "finish" .}}
+      <p class="{{$field.ErrorClass}}">
+        <strong>Finish Time:</strong>
+        <input type="text" name="{{$field.Name}}" size="32" placeholder="YYYY-MM-DD hh:mm:ss" value="{{$field.Flash}}">
+        <span class="error">{{$field.Error}}</span>
+      </p>
+    {{end}}
+    {{with $field := field "problems" .}}
+      <p class="{{$field.ErrorClass}}">
+        <strong>Shortname of problems:</strong>
+        <textarea name="{{$field.Name}}">{{$field.Flash}}</textarea>
+        <span class="error">{{$field.Error}}</span>
+      </p>
+    {{end}}
+    <p class="buttons">
+      <input type="submit" value="Create">
+    </p>
+</form>
+
+{{template "footer.html" .}}
