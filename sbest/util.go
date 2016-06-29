@@ -1,6 +1,10 @@
 package sbest
 
-import "math/rand"
+import (
+	"fmt"
+	"math/rand"
+	"net/rpc"
+)
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 const (
@@ -25,4 +29,21 @@ func RandString(n int) string {
 	}
 
 	return string(b)
+}
+
+func Call(srv string, rpcname string, args interface{}, reply interface{}) bool {
+	c, errx := rpc.Dial("tcp", srv)
+	if errx != nil {
+		fmt.Println(errx)
+		return false
+	}
+	defer c.Close()
+
+	err := c.Call(rpcname, args, reply)
+	if err == nil {
+		return true
+	}
+
+	fmt.Println(err)
+	return false
 }

@@ -1,11 +1,14 @@
 package app
 
 import (
+	"log"
 	"math/rand"
+	"net/http"
 	"time"
 
 	"github.com/abcdabcd987/SubmitBest"
 	"github.com/abcdabcd987/SubmitBest/model"
+	"github.com/abcdabcd987/SubmitBest/sbest"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	"github.com/revel/revel"
 )
@@ -29,9 +32,14 @@ func init() {
 
 	// register startup functions with OnAppStart
 	// ( order dependent )
+	revel.OnAppStart(initRand)
 	revel.OnAppStart(initDB)
+	revel.OnAppStart(initFileServer)
+	revel.OnAppStart(initTaskServer)
 	// revel.OnAppStart(FillCache)
+}
 
+func initRand() {
 	rand.Seed(time.Now().UTC().UnixNano())
 }
 
@@ -41,6 +49,18 @@ func initDB() {
 	pass := SubmitBest.DB_PASS
 	name := SubmitBest.DB_NAME
 	model.InitDB(host, user, pass, name)
+}
+
+func initFileServer() {
+	go func() {
+		fs := http.FileServer(http.Dir(SubmitBest.ROOT))
+		http.Handle("/", fs)
+		log.Fatal(http.ListenAndServe(SubmitBest.FILESERVER_ADDR, fs))
+	}()
+}
+
+func initTaskServer() {
+	sbest.RunTaskServer(SubmitBest.TASKSERVER_ADDR)
 }
 
 // TODO turn this into revel.HeaderFilter

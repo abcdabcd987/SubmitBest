@@ -2,9 +2,11 @@ package controllers
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -26,6 +28,25 @@ func (c App) Index() revel.Result {
 
 func (c App) Register() revel.Result {
 	return c.Render()
+}
+
+func (c App) Login() revel.Result {
+	return c.Render()
+}
+
+func (c App) DoLogin(username, password string) revel.Result {
+	var user model.User
+	ret := model.DB.Where("username = ?", username).First(&user)
+	if !ret.RecordNotFound() {
+		hashed, _ := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+		if password == string(hashed) {
+			c.Session["user.name"] = user.Username
+			return c.Redirect(routes.App.Index())
+		}
+	}
+	c.Flash.Error("Username or password incorrect.")
+	c.FlashParams()
+	return c.Redirect(routes.App.Login())
 }
 
 func (c App) DoRegister(user model.User, verifyPassword string) revel.Result {
@@ -132,43 +153,6 @@ type makeDataArg struct {
 }
 
 func makeData(arg []makeDataArg) error {
-	/*var userSet map[string]bool
-	var problemSet map[string]bool
-	for _, a := range arg {
-		if _, ok := userSet[a.username]; !ok {
-			userSet[a.username] = true
-		}
-		if _, ok := problemSet[a.shortname]; !ok {
-			problemSet[a.shortname] = true
-		}
-	}
-	var usernames []string
-	var shortnames []string
-	for k := range userSet {
-		usernames = append(usernames, k)
-	}
-	for k := range problemSet {
-		shortnames = append(shortnames, k)
-	}
-	var cntUser int
-	var cntProblem int
-	model.DB.Model(&model.User{}).Where("username IN (?)", usernames).Count(&cntUser)
-	if cntUser != len(usernames) {
-		return fmt.Errorf("cntUser = %d != %d = len(usernames)", cntUser, len(usernames))
-	}
-	model.DB.Model(&model.Problem{}).Where("short_name IN (?)", shortnames).Count(&cntProblem)
-	if cntProblem != len(shortnames) {
-		return fmt.Errorf("cntProblem = %d != %d = len(shortnames)", cntProblem, len(shortnames))
-	}
-
-	// delete old
-	empty := model.ProblemInput{}
-	for _, a := range arg {
-		model.DB.Where("username = ?, short_name = ?, testcase_id = ?",
-			a.username, a.shortname, a.dataID).Delete(empty)
-	}
-
-	// create new*/
 	for _, a := range arg {
 		var old model.ProblemInput
 		var err error
@@ -179,8 +163,8 @@ func makeData(arg []makeDataArg) error {
 			continue
 		}
 
-		filename := path.Join(a.shortname, sbest.RandString(16))
-		os.MkdirAll(path.Join(SubmitBest.ROOT_USER_INPUT, a.shortname), 0755)
+		filename := path.Join(a.username, a.shortname, sbest.RandString(16))
+		os.MkdirAll(path.Join(SubmitBest.ROOT_USER_INPUT, a.username, a.shortname), 0755)
 		realpath := path.Join(SubmitBest.ROOT_USER_INPUT, filename)
 		fmt.Printf("realpath=%s\n", realpath)
 		fmt.Printf("a=%+v\n", a)
@@ -243,4 +227,101 @@ func (c App) MakeDataAll(shortname string, reload string) revel.Result {
 
 	c.Flash.Success("Successfully make data for problem %s for all users", shortname)
 	return c.Redirect(routes.App.Management())
+}
+
+func (c App) Submit() revel.Result {
+	return c.Render()
+}
+
+func (c App) DoSubmit() revel.Result {
+	shortname := c.Params.Get("shortname")
+	testcaseid := c.Params.Get("testcaseid")
+	username, ok := c.Session["user.name"]
+	if !ok {
+		c.Flash.Error("You must login first!")
+		c.FlashParams()
+		return c.Redirect(routes.App.Login())
+	}
+	testcaseID, err := strconv.Atoi(testcaseid)
+	if err != nil {
+		c.Flash.Error("testcaseid invalid")
+		c.FlashParams()
+		return c.Redirect(routes.App.Submit())
+	}
+	var input model.ProblemInput
+	ret := model.DB.Where("username = ? AND short_name = ? AND testcase_id = ?",
+		username, shortname, testcaseID).First(&input)
+	if ret.RecordNotFound() {
+		c.Flash.Error("Testcase Not Found for User %s, Problem %s, TestcaseID %d", username, shortname, testcaseID)
+		c.FlashParams()
+		return c.Redirect(routes.App.Submit())
+	}
+
+	f1, ok1 := c.Params.Files["answer"]
+	f2, ok2 := c.Params.Files["solution"]
+	if !ok1 || !ok2 || len(f1) != 1 || len(f2) != 1 {
+		c.Flash.Error("File upload incorrect.")
+		c.FlashParams()
+		return c.Redirect(routes.App.Submit())
+	}
+	answer := f1[0]
+	solution := f2[0]
+	pAnswer := path.Join(username, shortname, sbest.RandString(16)+path.Ext(answer.Filename))
+	pSolution := path.Join(username, shortname, sbest.RandString(16)+path.Ext(solution.Filename))
+	iAnswer, err1 := answer.Open()
+	iSolution, err2 := solution.Open()
+	os.MkdirAll(path.Dir(path.Join(SubmitBest.ROOT_USER_ANSWER, pAnswer)), 0755)
+	os.MkdirAll(path.Dir(path.Join(SubmitBest.ROOT_USER_SOLUTION, pSolution)), 0755)
+	oAnswer, err3 := os.Create(path.Join(SubmitBest.ROOT_USER_ANSWER, pAnswer))
+	oSolution, err4 := os.Create(path.Join(SubmitBest.ROOT_USER_SOLUTION, pSolution))
+	defer iAnswer.Close()
+	defer iSolution.Close()
+	defer oAnswer.Close()
+	defer oSolution.Close()
+	_, err5 := io.Copy(oAnswer, iAnswer)
+	_, err6 := io.Copy(oSolution, iSolution)
+	if err1 != nil || err2 != nil || err3 != nil || err4 != nil || err5 != nil || err6 != nil {
+		if err1 != nil {
+			c.Flash.Error("%v", err1)
+			fmt.Println("1")
+		}
+		if err2 != nil {
+			c.Flash.Error("%v", err2)
+			fmt.Println("2")
+		}
+		if err3 != nil {
+			c.Flash.Error("%v", err3)
+			fmt.Println("3")
+		}
+		if err4 != nil {
+			c.Flash.Error("%v", err4)
+			fmt.Println("4")
+		}
+		if err5 != nil {
+			c.Flash.Error("%v", err5)
+			fmt.Println("5")
+		}
+		if err6 != nil {
+			c.Flash.Error("%v", err6)
+			fmt.Println("6")
+		}
+		c.FlashParams()
+		return c.Redirect(routes.App.Submit())
+	}
+
+	submit := model.Submit{
+		Username:     username,
+		ShortName:    shortname,
+		TestcaseID:   testcaseID,
+		InputFile:    input.InputFile,
+		SolutionFile: pSolution,
+		AnswerFile:   pAnswer,
+	}
+	if err := model.DB.Create(&submit).Error; err != nil {
+		c.Flash.Error("%v", err)
+		c.FlashParams()
+		return c.Redirect(routes.App.Submit())
+	}
+
+	return c.Redirect(routes.App.Submit())
 }

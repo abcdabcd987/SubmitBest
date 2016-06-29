@@ -45,16 +45,15 @@ type ProblemInput struct {
 
 type Submit struct {
 	gorm.Model
-	User       User
-	UserID     int
-	Problem    Problem
-	ProblemID  int
+	Username   string
+	ShortName  string
 	TestcaseID int
 
 	InputFile    string
 	AnswerFile   string
 	SolutionFile string
-	Score        float64
+	Score        int
+	Message      string
 
 	Status string `gorm:"default:'pending'"`
 }

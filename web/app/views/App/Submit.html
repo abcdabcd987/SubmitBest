@@ -1,0 +1,35 @@
+{{set . "title" .prob.Title}}
+{{template "header.html" .}}
+
+<h1>Submit Solution</h1>
+
+{{template "flash.html" .}}
+<form action="{{url "App.DoSubmit"}}" enctype="multipart/form-data" method="post">
+  {{with $field := field "shortname" .}}
+  <p>
+    <strong>Problem Shortname</strong>
+    <input type="text" name="{{$field.Name}}" value="{{$field.Flash}}" required>
+  </p>
+  {{end}}
+  {{with $field := field "testcaseid" .}}
+  <p>
+    <strong>TestcaseID</strong>
+    <input type="text" name="{{$field.Name}}" value="{{$field.Flash}}" required>
+  </p>
+  {{end}}
+  {{with $field := field "answer" .}}
+  <p>
+    <strong>Answer</strong>
+    <input type="file" name="{{$field.Name}}" value="{{$field.Flash}}" required>
+  </p>
+  {{end}}
+  {{with $field := field "solution" .}}
+  <p>
+    <strong>Source Code</strong>
+    <input type="file" name="{{$field.Name}}" value="{{$field.Flash}}" required>
+  </p>
+  {{end}}
+  <p class="buttons">
+    <input type="submit" value="Submit">
+  </p>
+</form>

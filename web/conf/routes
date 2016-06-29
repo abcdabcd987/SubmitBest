@@ -5,9 +5,11 @@
 module:testrunner
 
 GET     /                                       App.Index
+GET     /login                                  App.Login
 GET     /register                               App.Register
 GET     /management                             App.Management
 GET     /problem/:shortname                     App.Problem
+GET     /submit                                 App.Submit
 
 # Ignore favicon requests
 GET     /favicon.ico                            404

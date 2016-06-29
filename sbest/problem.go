@@ -83,9 +83,11 @@ func ReadProblem(shortname string) (*model.Problem, error) {
 var lock sync.Mutex
 var problemPath = make(map[string]string)
 
-func Prepare(shortname string, reload bool) {
-	lock.Lock()
-	defer lock.Unlock()
+func Prepare(shortname string, reload bool, lockNow bool) {
+	if lockNow {
+		lock.Lock()
+		defer lock.Unlock()
+	}
 	if _, ok := problemPath[shortname]; ok && !reload {
 		return
 	}
@@ -99,7 +101,7 @@ func Prepare(shortname string, reload bool) {
 }
 
 func MakeData(shortname, username string, dataID int, outputPath string) {
-	Prepare(shortname, false)
+	Prepare(shortname, false, true)
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -112,7 +114,7 @@ func MakeData(shortname, username string, dataID int, outputPath string) {
 }
 
 func Judge(shortname, username string, dataID int, inputPath, answerPath string) (int, string) {
-	Prepare(shortname, false)
+	Prepare(shortname, false, true)
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -120,7 +122,7 @@ func Judge(shortname, username string, dataID int, inputPath, answerPath string)
 	exec.Command("bash", path.Join(pProblem, "judge.bash"),
 		username, strconv.Itoa(dataID), inputPath, answerPath).Run()
 	scoreContent, _ := ioutil.ReadFile(path.Join(pProblem, "score.txt"))
-	score, _ := strconv.Atoi(string(scoreContent))
+	score, _ := strconv.Atoi(strings.TrimSpace(string(scoreContent)))
 	msg, _ := ioutil.ReadFile(path.Join(pProblem, "message.txt"))
 	os.Remove(path.Join(pProblem, "score.txt"))
 	os.Remove(path.Join(pProblem, "message.txt"))

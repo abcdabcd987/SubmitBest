@@ -6,9 +6,14 @@ const (
 	DB_PASS = ""
 	DB_NAME = "sbest"
 
-	ROOT_PROBLEM     = "/Users/abcdabcd987/Developer/tmp/sbest/problems"
-	ROOT_USER_INPUT  = "/Users/abcdabcd987/Developer/tmp/sbest/input"
-	ROOT_USER_ANSWER = "/Users/abcdabcd987/Developer/tmp/sbest/ans"
+	FILESERVER_ADDR = ":10086"
+	TASKSERVER_ADDR = ":10010"
+
+	ROOT               = "/Users/abcdabcd987/Developer/tmp/sbest/"
+	ROOT_PROBLEM       = ROOT + "problems"
+	ROOT_USER_INPUT    = ROOT + "input"
+	ROOT_USER_ANSWER   = ROOT + "answer"
+	ROOT_USER_SOLUTION = ROOT + "solution"
 
 	TimeFormat = "2006-01-02 15:04:03"
 )
