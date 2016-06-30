@@ -5,8 +5,9 @@
 
 <ul>
     <li>Title: {{.contest.Title}}</li>
-    <li>StartAt: {{.startAt}}</li>
-    <li>FinishAt: {{.finishAt}}</li>
+    <li><a href="/contest/{{.contest.ID}}/board">Board</a></li>
+    <li>StartAt: {{makeTime .contest.StartAt}}</li>
+    <li>FinishAt: {{makeTime .contest.FinishAt}}</li>
     <li>Problems:</li>
     <ul>
     {{range .problems}}

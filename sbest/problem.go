@@ -106,8 +106,6 @@ func MakeData(shortname, username string, dataID int, outputPath string) {
 	defer lock.Unlock()
 
 	pProblem := problemPath[shortname]
-	fmt.Printf("pProblem=%s\n", pProblem)
-	fmt.Printf("username=%s, dataID=%d\n", username, dataID)
 	exec.Command("bash", path.Join(pProblem, "makedata.bash"),
 		username, strconv.Itoa(dataID)).Run()
 	exec.Command("mv", path.Join(pProblem, "data.in"), outputPath).Run()

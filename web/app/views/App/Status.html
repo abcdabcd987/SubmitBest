@@ -1,0 +1,39 @@
+{{set . "title" "Status"}}
+{{template "header.html" .}}
+{{template "flash.html" .}}
+
+<h1>Status</h1>
+
+<form action="/status" method="get">
+    <input name="username" placeholder="Username" size="12" value="{{.username}}">
+    <input name="shortname" placeholder="Problem" size="12" value="{{.shortname}}">
+    <input name="testcaseid" placeholder="TestcaseID" size="12" value="{{.testcaseid}}">
+    <button>Find</button>
+</form>
+
+<table>
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>User</th>
+            <th>Problem</th>
+            <th>TestcaseID</th>
+            <th>Status</th>
+            <th>Score</th>
+            <th>Time</th>
+        </tr>
+    </thead>
+    <tbody>
+    {{range .table}}
+        <tr>
+            <td><a href="/status?username={{$.username}}&amp;shortname={{$.shortname}}&amp;testcaseid={{$.testcaseid}}&amp;start={{.ID}}">{{.ID}}</a></td>
+            <td>{{.Username}}</td>
+            <td><a href="/problem/{{.ShortName}}">{{.ShortName}}</a></td>
+            <td>{{.TestcaseID}}</td>
+            <td><a href="/solution/{{.ID}}">{{.Status}}</a></td>
+            <td>{{.Score}}</td>
+            <td>{{makeTime .CreatedAt}}</td>
+        </tr>
+    {{end}}
+    </tbody>
+</table>

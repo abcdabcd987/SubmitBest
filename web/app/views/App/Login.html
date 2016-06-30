@@ -14,7 +14,7 @@
   {{end}}
   {{with $field := field "password" .}}
     <p class="{{$field.ErrorClass}}">
-      <strong>Password:</strong> <input type="password" name="{{$field.Name}}" size="16" value="{{$field.Flash}}">
+      <strong>Password:</strong> <input type="password" name="{{$field.Name}}" size="16" value="">
       <span class="error">{{$field.Error}}</span>
     </p>
   {{end}}

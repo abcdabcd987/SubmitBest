@@ -1,18 +1,24 @@
 {{set . "title" "Register"}}
 {{template "header.html" .}}
 
-<h1>Register</h1>
+<h1>Modify User</h1>
 
 {{template "flash.html" .}}
-<form action="{{url "App.DoRegister"}}" method="post">
-  {{with $field := field "user.Username" .}}
+<form action="{{url "App.DoModifyUser"}}" method="post">
+  {{with $field := field "username" .}}
     <p class="{{$field.ErrorClass}}">
       <strong>Username:</strong>
-      <input type="text" name="{{$field.Name}}" size="16" value="{{$field.Flash}}">
+      <input type="text" disabled size="16" value="{{$.user.Username}}">
       <span class="error">{{$field.Error}}</span>
     </p>
   {{end}}
-  {{with $field := field "user.Password" .}}
+  {{with $field := field "oldpassword" .}}
+    <p class="{{$field.ErrorClass}}">
+      <strong>Old Password:</strong> <input type="password" name="{{$field.Name}}" size="16" value="">
+      <span class="error">{{$field.Error}}</span>
+    </p>
+  {{end}}
+  {{with $field := field "password" .}}
     <p class="{{$field.ErrorClass}}">
       <strong>Password:</strong> <input type="password" name="{{$field.Name}}" size="16" value="">
       <span class="error">{{$field.Error}}</span>
@@ -25,7 +31,7 @@
     </p>
   {{end}}
   <p class="buttons">
-    <input type="submit" value="Register">
+    <input type="submit" value="Modify">
   </p>
 </form>
 

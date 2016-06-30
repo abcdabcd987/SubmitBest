@@ -54,4 +54,17 @@
     </p>
 </form>
 
+<h2>Batch Register</h2>
+<form action="{{url "App.BatchRegister"}}" method="post">
+    {{with $field := field "usernames" .}}
+    <strong>Username List (seperated by newline):</strong>
+    <div>
+        <textarea name="{{$field.Name}}" rows="20" cols="40"></textarea>
+    </div>
+    {{end}}
+    <p class="buttons">
+      <input type="submit" value="Batch Register">
+    </p>
+</form>
+
 {{template "footer.html" .}}

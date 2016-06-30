@@ -9,6 +9,7 @@
     <li>TestcaseID: {{.submit.TestcaseID}}</li>
     <li>Status: {{.submit.Status}}</li>
     <li>Score: {{.submit.Score}}</li>
+    <li>Submit Time: {{makeTime .submit.CreatedAt}}</li>
     <li>Input File: <a href="/solution/{{.submit.ID}}/input/{{.submit.TestcaseID}}.in">Download <code>{{.submit.TestcaseID}}.in</code></a>
     <li>Answer File: <a href="/solution/{{.submit.ID}}/answer/{{.submit.TestcaseID}}.ans">Download <code>{{.submit.TestcaseID}}.ans</code></a>
     <li>Solution File: <a href="/solution/{{.submit.ID}}/solution/{{.submit.SolutionFileName}}">Download <code>{{.submit.SolutionFileName}}</code></a>

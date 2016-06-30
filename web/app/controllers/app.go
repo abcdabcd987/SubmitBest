@@ -23,25 +23,109 @@ type App struct {
 	*revel.Controller
 }
 
+func (c App) AddUser() revel.Result {
+	if user := c.connected(); user != nil {
+		c.RenderArgs["user"] = user
+	}
+	return nil
+}
+
+func (c App) connected() *model.User {
+	if c.RenderArgs["user"] != nil {
+		return c.RenderArgs["user"].(*model.User)
+	}
+	if username, ok := c.Session["user.name"]; ok {
+		var user model.User
+		ret := model.DB.Where("username=?", username).First(&user)
+		if !ret.RecordNotFound() {
+			return &user
+		}
+	}
+	return nil
+}
+
 func (c App) Index() revel.Result {
 	return c.Render()
 }
 
 func (c App) Register() revel.Result {
+	_, ok := c.Session["user.name"]
+	if ok {
+		c.Flash.Error("You already logged in.")
+		return c.Redirect(routes.App.Index())
+	}
 	return c.Render()
 }
 
 func (c App) Login() revel.Result {
+	_, ok := c.Session["user.name"]
+	if ok {
+		c.Flash.Error("You already logged in.")
+		return c.Redirect(routes.App.Index())
+	}
 	return c.Render()
 }
 
+func (c App) ModifyUser() revel.Result {
+	username, ok := c.Session["user.name"]
+	if !ok {
+		c.Flash.Error("Please login first")
+		return c.Redirect(routes.App.Login())
+	}
+	var user model.User
+	model.DB.Where("username = ?", username).First(&user)
+	return c.Render(user)
+}
+
+func (c App) DoModifyUser(oldpassword, password, verifyPassword string) revel.Result {
+	username, ok := c.Session["user.name"]
+	if !ok {
+		c.Flash.Error("Please login first")
+		return c.Redirect(routes.App.Login())
+	}
+	if password == "" || password != verifyPassword {
+		c.Flash.Error("Please check your new password")
+		return c.Redirect(routes.App.ModifyUser())
+	}
+	var user model.User
+	model.DB.Where("username = ?", username).First(&user)
+	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(oldpassword))
+	if err != nil {
+		c.Flash.Error("incorrect password")
+		return c.Redirect(routes.App.ModifyUser())
+	}
+	hashed, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	user.Password = string(hashed)
+	if err := model.DB.Save(user).Error; err != nil {
+		c.Flash.Error("%v", err)
+		c.FlashParams()
+		return c.Redirect(routes.App.ModifyUser())
+	}
+	c.Flash.Success("Modify User Success")
+	return c.Redirect(routes.App.Index())
+}
+
+func (c App) Logout() revel.Result {
+	for k := range c.Session {
+		delete(c.Session, k)
+	}
+	return c.Redirect(routes.App.Index())
+}
+
 func (c App) DoLogin(username, password string) revel.Result {
+	_, pok := c.Session["user.name"]
+	if pok {
+		c.Flash.Error("You already logged in.")
+		return c.Redirect(routes.App.Index())
+	}
 	var user model.User
 	ret := model.DB.Where("username = ?", username).First(&user)
 	if !ret.RecordNotFound() {
-		hashed, _ := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
-		if password == string(hashed) {
+		err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
+		if err == nil {
 			c.Session["user.name"] = user.Username
+			c.Session["user.id"] = fmt.Sprintf("%v", user.ID)
+			c.Session["user.privilege"] = user.Privilege
 			return c.Redirect(routes.App.Index())
 		}
 	}
@@ -51,6 +135,11 @@ func (c App) DoLogin(username, password string) revel.Result {
 }
 
 func (c App) DoRegister(user model.User, verifyPassword string) revel.Result {
+	_, pok := c.Session["user.name"]
+	if pok {
+		c.Flash.Error("You already logged in.")
+		return c.Redirect(routes.App.Index())
+	}
 	c.Validation.Required(verifyPassword)
 	c.Validation.Required(user.Password == verifyPassword).Message("Password does not match")
 	if c.Validation.HasErrors() {
@@ -67,7 +156,39 @@ func (c App) DoRegister(user model.User, verifyPassword string) revel.Result {
 	}
 
 	c.Session["user.name"] = user.Username
+	c.Session["user.id"] = fmt.Sprintf("%v", user.ID)
+	c.Session["user.privilege"] = user.Privilege
+	c.Flash.Success("Welcome")
 	return c.Redirect(routes.App.Index())
+}
+
+func (c App) BatchRegister(usernames string) revel.Result {
+	privilege, pok := c.Session["user.privilege"]
+	if !pok || privilege != "admin" {
+		c.Flash.Error("Permission Denied.")
+		return c.Redirect(routes.App.Index())
+	}
+	const PASSWORD = "123456"
+	l := strings.Split(usernames, "\n")
+	tx := model.DB.Begin()
+	for _, v := range l {
+		user := model.User{
+			Username:  strings.TrimSpace(v),
+			Password:  PASSWORD,
+			Privilege: "user",
+		}
+		hashed, _ := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+		user.Password = string(hashed)
+		tx.Create(&user)
+	}
+	if err := tx.Commit().Error; err != nil {
+		c.Flash.Error("%v", err)
+		c.FlashParams()
+		return c.Redirect(routes.App.Management())
+	}
+
+	c.Flash.Success("Batch register success. All passwords are `%s`", PASSWORD)
+	return c.Redirect(routes.App.Management())
 }
 
 func (c App) Problem(shortname string) revel.Result {
@@ -90,9 +211,10 @@ func (c App) Problem(shortname string) revel.Result {
 		Max        int
 	}
 	var mybestRows []mybestType
+	userid, _ := strconv.Atoi(c.Session["user.id"])
 	model.DB.Table("submits").
 		Select("testcase_id, MAX(score)").
-		Where("short_name = ? AND user_id = ?", prob.ShortName, c.Session["user.id"]).
+		Where("short_name = ? AND user_id = ?", prob.ShortName, userid).
 		Group("user_id, short_name, testcase_id").
 		Scan(&mybestRows)
 	for _, v := range mybestRows {
@@ -126,11 +248,122 @@ func (c App) Problem(shortname string) revel.Result {
 	return c.Render(prob, data)
 }
 
+func (c App) DownloadInput(shortname string, tid int) revel.Result {
+	username, ok := c.Session["user.name"]
+	if !ok {
+		c.Flash.Error("Please Login First")
+		return c.Redirect(routes.App.Login())
+	}
+
+	var input model.ProblemInput
+	ret := model.DB.Where("username = ? AND short_name = ? AND testcase_ID = ?",
+		username, shortname, tid).First(&input)
+	if ret.RecordNotFound() {
+		c.Flash.Error("Cannot find data.")
+		return c.Redirect(routes.App.Problem(shortname))
+	}
+
+	p := path.Join(SubmitBest.ROOT_USER_INPUT, input.InputFile)
+	f, err := os.Open(p)
+	if err != nil {
+		c.Flash.Error("%v", err)
+		return c.Redirect(routes.App.Problem(shortname))
+	}
+	d := fmt.Sprintf("attachment; filename=\"%d.in\"", tid)
+	return c.RenderFile(f, revel.ContentDisposition(d))
+}
+
+func (c App) DownloadSolutionInput(sid int, filename string) revel.Result {
+	var s model.Submit
+	ret := model.DB.Where("id=?", sid).First(&s)
+	if ret.RecordNotFound() {
+		c.Flash.Error("Cannot find solution.")
+		return c.Redirect(routes.App.Status())
+	}
+
+	username, pok := c.Session["user.name"]
+	privilege, _ := c.Session["user.privilege"]
+	if !pok || (username != s.Username && privilege != "admin") {
+		c.Flash.Error("Permission Denied")
+		return c.Redirect(routes.App.Status())
+	}
+
+	p := path.Join(SubmitBest.ROOT_USER_INPUT, s.InputFile)
+	f, err := os.Open(p)
+	if err != nil {
+		c.Flash.Error("%v", err)
+		return c.Redirect(routes.App.Status())
+	}
+	d := fmt.Sprintf("attachment; filename=\"%s\"", filename)
+	return c.RenderFile(f, revel.ContentDisposition(d))
+}
+
+func (c App) DownloadSolutionAnswer(sid int, filename string) revel.Result {
+	var s model.Submit
+	ret := model.DB.Where("id=?", sid).First(&s)
+	if ret.RecordNotFound() {
+		c.Flash.Error("Cannot find solution.")
+		return c.Redirect(routes.App.Status())
+	}
+
+	username, pok := c.Session["user.name"]
+	privilege, _ := c.Session["user.privilege"]
+	if !pok || (username != s.Username && privilege != "admin") {
+		c.Flash.Error("Permission Denied")
+		return c.Redirect(routes.App.Status())
+	}
+
+	p := path.Join(SubmitBest.ROOT_USER_ANSWER, s.AnswerFile)
+	f, err := os.Open(p)
+	if err != nil {
+		c.Flash.Error("%v", err)
+		return c.Redirect(routes.App.Status())
+	}
+	d := fmt.Sprintf("attachment; filename=\"%s\"", filename)
+	return c.RenderFile(f, revel.ContentDisposition(d))
+}
+
+func (c App) DownloadSolution(sid int, filename string) revel.Result {
+	var s model.Submit
+	ret := model.DB.Where("id=?", sid).First(&s)
+	if ret.RecordNotFound() {
+		c.Flash.Error("Cannot find solution.")
+		return c.Redirect(routes.App.Status())
+	}
+
+	username, pok := c.Session["user.name"]
+	privilege, _ := c.Session["user.privilege"]
+	if !pok || (username != s.Username && privilege != "admin") {
+		c.Flash.Error("Permission Denied")
+		return c.Redirect(routes.App.Status())
+	}
+
+	p := path.Join(SubmitBest.ROOT_USER_SOLUTION, s.SolutionFile)
+	f, err := os.Open(p)
+	if err != nil {
+		c.Flash.Error("%v", err)
+		return c.Redirect(routes.App.Status())
+	}
+	d := fmt.Sprintf("attachment; filename=\"%s\"", filename)
+	return c.RenderFile(f, revel.ContentDisposition(d))
+}
+
 func (c App) Management() revel.Result {
+	privilege, pok := c.Session["user.privilege"]
+	if !pok || privilege != "admin" {
+		c.Flash.Error("Permission Denied")
+		return c.Redirect(routes.App.Index())
+	}
 	return c.Render()
 }
 
 func (c App) RefreshProblem(shortname string) revel.Result {
+	privilege, pok := c.Session["user.privilege"]
+	if !pok || privilege != "admin" {
+		c.Flash.Error("Permission Denied")
+		return c.Redirect(routes.App.Index())
+	}
+
 	prob, err := sbest.ReadProblem(shortname)
 	if err != nil {
 		c.Flash.Error("%v", err)
@@ -156,6 +389,12 @@ func (c App) RefreshProblem(shortname string) revel.Result {
 }
 
 func (c App) CreateContest(title, start, finish, problems string) revel.Result {
+	privilege, pok := c.Session["user.privilege"]
+	if !pok || privilege != "admin" {
+		c.Flash.Error("Permission Denied")
+		return c.Redirect(routes.App.Index())
+	}
+
 	st, _ := time.Parse(SubmitBest.TimeFormat, start)
 	ed, _ := time.Parse(SubmitBest.TimeFormat, finish)
 	if st.IsZero() || ed.IsZero() || st.After(ed) {
@@ -204,9 +443,9 @@ func makeData(arg []makeDataArg) error {
 	for _, a := range arg {
 		var old model.ProblemInput
 		var err error
+		fmt.Printf("    making data for (%s, %s, %d)\n", a.username, a.shortname, a.dataID)
 		ret := model.DB.Where("username = ? AND short_name = ? AND testcase_id = ?",
 			a.username, a.shortname, a.dataID).First(&old)
-		fmt.Printf("record not found: %v\n", ret.RecordNotFound())
 		if !ret.RecordNotFound() && !a.reload {
 			continue
 		}
@@ -214,8 +453,6 @@ func makeData(arg []makeDataArg) error {
 		filename := path.Join(a.username, a.shortname, sbest.RandString(16))
 		os.MkdirAll(path.Join(SubmitBest.ROOT_USER_INPUT, a.username, a.shortname), 0755)
 		realpath := path.Join(SubmitBest.ROOT_USER_INPUT, filename)
-		fmt.Printf("realpath=%s\n", realpath)
-		fmt.Printf("a=%+v\n", a)
 		sbest.MakeData(a.shortname, a.username, a.dataID, realpath)
 
 		if ret.RecordNotFound() {
@@ -226,22 +463,25 @@ func makeData(arg []makeDataArg) error {
 				InputFile:  filename,
 			}
 			err = model.DB.Create(&now).Error
-			fmt.Printf("created\n")
 		} else {
 			old.InputFile = filename
 			err = model.DB.Save(&old).Error
-			fmt.Printf("updated\n")
 		}
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
-	fmt.Printf("len(arg)=%d\n", len(arg))
+	fmt.Printf("    all %d data is made.\n", len(arg))
 	return nil
 }
 
 func (c App) MakeDataAll(shortname string, reload string) revel.Result {
-	fmt.Printf("\n\n\n\n\n\nreload=%s\n", reload)
+	privilege, pok := c.Session["user.privilege"]
+	if !pok || privilege != "admin" {
+		c.Flash.Error("Permission Denied")
+		return c.Redirect(routes.App.Index())
+	}
+
 	var prob model.Problem
 	if model.DB.Where("short_name = ?", shortname).First(&prob).RecordNotFound() {
 		c.Flash.Error("Problem %s does not exist", shortname)
@@ -263,8 +503,6 @@ func (c App) MakeDataAll(shortname string, reload string) revel.Result {
 			})
 		}
 	}
-	fmt.Printf("%+v\n", args)
-	fmt.Printf("len(args)=%d\n", len(args))
 
 	err := makeData(args)
 	if err != nil {
@@ -274,10 +512,17 @@ func (c App) MakeDataAll(shortname string, reload string) revel.Result {
 	}
 
 	c.Flash.Success("Successfully make data for problem %s for all users", shortname)
-	return c.Redirect(routes.App.Management())
+	return c.Redirect(routes.App.Problem(shortname))
 }
 
 func (c App) Submit() revel.Result {
+	_, ok := c.Session["user.name"]
+	if !ok {
+		c.Flash.Error("You must login first!")
+		c.FlashParams()
+		return c.Redirect(routes.App.Login())
+	}
+
 	testcaseid := c.Params.Get("testcaseid")
 	shortname := c.Params.Get("shortname")
 	if testcaseid == "" {
@@ -383,12 +628,46 @@ func (c App) DoSubmit() revel.Result {
 	return c.Redirect(routes.App.Solution(submit.ID))
 }
 
+func (c App) Status() revel.Result {
+	var table []model.Submit
+	username := c.Params.Get("username")
+	shortname := c.Params.Get("shortname")
+	testcaseid := c.Params.Get("testcaseid")
+	start := c.Params.Get("start")
+	fmt.Printf("%s, %s, %s\n", username, shortname, testcaseid)
+	db := model.DB
+	if username != "" {
+		db = db.Where("username = ?", username)
+	}
+	if shortname != "" {
+		db = db.Where("short_name = ?", shortname)
+	}
+	if testcaseid != "" {
+		id, _ := strconv.Atoi(testcaseid)
+		db = db.Where("testcase_id = ?", id)
+	}
+	if start != "" {
+		s, _ := strconv.Atoi(start)
+		db = db.Where("id <= ?", s)
+	}
+	db.Limit("25").Find(&table)
+	return c.Render(table, username, shortname, testcaseid, start)
+}
+
 func (c App) Solution(id uint) revel.Result {
 	var submit model.Submit
 	p := model.DB.Where("id = ?", id).First(&submit)
 	if p.RecordNotFound() {
 		return c.NotFound("Solution %s Not Found", id)
 	}
+
+	username, pok := c.Session["user.name"]
+	privilege, _ := c.Session["user.privilege"]
+	if !pok || (username != submit.Username && privilege != "admin") {
+		c.Flash.Error("Permission Denied")
+		return c.Redirect(routes.App.Status())
+	}
+
 	return c.Render(submit)
 }
 
@@ -470,8 +749,7 @@ func (c App) Board(id uint) revel.Result {
 	var recs []rect
 	model.DB.Table("submits").
 		Select("username, short_name, testcase_id, MAX(score), COUNT(*)").
-		Where("short_name IN (?)", problemNames).
-		//Where("? <= created_at AND created_at < ?", contest.StartAt, contest.FinishAt).
+		Where("? <= created_at AND created_at < ? AND short_name IN (?)", contest.StartAt, contest.FinishAt, problemNames).
 		Group("username, short_name, testcase_id").
 		Scan(&recs)
 	type pt struct {

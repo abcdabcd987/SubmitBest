@@ -4,6 +4,9 @@
 <h1>{{.prob.Title}}</h1>
 
 {{template "flash.html" .}}
+
+{{if .user}}
+{{if eq .user.Privilege "admin"}}
 <form action="{{url "App.MakeDataAll"}}" method="post">
   {{with $field := field "shortname" .}}
     <input type="hidden" name="{{$field.Name}}" value="{{$.prob.ShortName}}">
@@ -18,6 +21,8 @@
     <input type="submit" value="Make Data">
   </p>
 </form>
+{{end}}
+{{end}}
 
 {{raw .prob.Description}}
 

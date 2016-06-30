@@ -2,15 +2,22 @@
 # This file defines all application routes (Higher priority routes first)
 # ~~~~
 
-module:testrunner
+#module:testrunner
 
 GET     /                                       App.Index
 GET     /login                                  App.Login
 GET     /register                               App.Register
+GET     /modify                                 App.ModifyUser
+GET     /logout                                 App.Logout
+GET     /status                                 App.Status
 GET     /management                             App.Management
 GET     /problem/:shortname                     App.Problem
+GET     /input/:shortname/:tid.in               App.DownloadInput
 GET     /submit                                 App.Submit
 GET     /solution/:id                           App.Solution
+GET     /solution/:sid/input/:filename          App.DownloadSolutionInput
+GET     /solution/:sid/answer/:filename         App.DownloadSolutionAnswer
+GET     /solution/:sid/solution/:filename       App.DownloadSolution
 GET     /contests                               App.Contests
 GET     /contest/:id                            App.Contest
 GET     /contest/:id/board                      App.Board

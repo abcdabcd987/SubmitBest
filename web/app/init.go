@@ -42,6 +42,9 @@ func init() {
 		return a + b
 	}
 
+	revel.TemplateFuncs["makeTime"] = func(t time.Time) string {
+		return t.Local().Format(SubmitBest.TimeFormat)
+	}
 	// register startup functions with OnAppStart
 	// ( order dependent )
 	revel.OnAppStart(initRand)
