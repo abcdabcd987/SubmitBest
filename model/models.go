@@ -71,9 +71,11 @@ func InitDB(host, user, pass, name string) {
 	db.AutoMigrate(&Contest{})
 	db.AutoMigrate(&ProblemInput{})
 	db.AutoMigrate(&Submit{})
-	db.Model(&User{}).AddUniqueIndex("idx_user_username", "username")
-	db.Model(&Problem{}).AddUniqueIndex("idx_problem_shortname", "short_name")
-	db.Model(&ProblemInput{}).AddUniqueIndex(
-		"idx_probleminput_username_shortname_testcaseid", "username", "short_name", "testcase_id")
+	db.Model(&User{}).AddUniqueIndex("idx1", "username")
+	db.Model(&Problem{}).AddUniqueIndex("idx2", "short_name")
+	db.Model(&ProblemInput{}).AddUniqueIndex("idx3", "username", "short_name", "testcase_id")
+	db.Model(&Submit{}).AddIndex("idx4", "status")
+	db.Model(&Submit{}).AddIndex("idx5", "username, short_name, testcase_id")
+	db.Model(&Submit{}).AddIndex("idx6", "short_name, testcase_id")
 	DB = db
 }
