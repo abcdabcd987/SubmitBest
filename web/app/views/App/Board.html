@@ -1,0 +1,38 @@
+{{set . "title" "Board"}}
+{{template "header.html" .}}
+
+<h1>Board of {{.contest.Title}}</h1>
+
+<table>
+    <thead>
+        <tr>
+            <th rowspan="2">Username</th>
+            <th rowspan="2">Score</th>
+            {{range .problems}}
+            <th colspan="{{add .NumTestcase 1}}">{{.ShortName}}</th>
+            {{end}}
+        </tr>
+        <tr>
+            {{range .problems}}
+            <th>Sum</th>
+            {{range $i := myrange 1 .NumTestcase}}
+            <th>{{$i}}</th>
+            {{end}}
+            {{end}}
+        </tr>
+    </thead>
+    <tbody>
+        {{range .board}}
+        <tr>
+            <td>{{.Username}}</td>
+            <td>{{.Score}}</td>
+            {{range .Problem}}
+            <td>{{.Sum}}</td>
+            {{range .Testcase}}
+            <td>{{if ne .Count 0}}{{.Max}} ({{.Count}}){{end}}</td>
+            {{end}}
+            {{end}}
+        </tr>
+        {{end}}
+    </tbody>
+</table>

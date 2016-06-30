@@ -8,13 +8,13 @@
   {{with $field := field "shortname" .}}
   <p>
     <strong>Problem Shortname</strong>
-    <input type="text" name="{{$field.Name}}" value="{{$field.Flash}}" required>
+    <input type="text" name="{{$field.Name}}" value="{{$.shortname}}" required>
   </p>
   {{end}}
   {{with $field := field "testcaseid" .}}
   <p>
     <strong>TestcaseID</strong>
-    <input type="text" name="{{$field.Name}}" value="{{$field.Flash}}" required>
+    <input type="text" name="{{$field.Name}}" value="{{$.testcaseid}}" required>
   </p>
   {{end}}
   {{with $field := field "answer" .}}

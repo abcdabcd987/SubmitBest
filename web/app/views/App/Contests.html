@@ -1,0 +1,23 @@
+{{set . "title" "Contests"}}
+{{template "header.html" .}}
+
+<h1>Contests</h1>
+
+<table>
+    <thead>
+        <tr>
+            <th>Title</th>
+            <th>StartAt</th>
+            <th>FinishAt</th>
+        </tr>
+    </thead>
+    <tbody>
+    {{range .contests}}
+        <tr>
+            <td><a href="/contest/{{.ID}}">{{.Title}}</a></td>
+            <td>{{.StartAt}}</td>
+            <td>{{.FinishAt}}</td>
+        </tr>
+    {{end}}
+    </tbody>
+</table>

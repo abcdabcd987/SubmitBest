@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -70,12 +71,59 @@ func (c App) DoRegister(user model.User, verifyPassword string) revel.Result {
 }
 
 func (c App) Problem(shortname string) revel.Result {
-	p := model.DB.Where("short_name = ?", shortname).First(&model.Problem{})
+	var prob model.Problem
+	p := model.DB.Where("short_name = ?", shortname).First(&prob)
 	if p.RecordNotFound() {
 		return c.NotFound("Problem %s Not Found", shortname)
 	}
-	prob := p.Value
-	return c.Render(prob)
+
+	type dataType struct {
+		DataID string
+		MyBest int
+		Best   int
+	}
+	data := make([]dataType, prob.NumTestcase+1)
+
+	// get my best
+	type mybestType struct {
+		TestcaseID uint
+		Max        int
+	}
+	var mybestRows []mybestType
+	model.DB.Table("submits").
+		Select("testcase_id, MAX(score)").
+		Where("short_name = ? AND user_id = ?", prob.ShortName, c.Session["user.id"]).
+		Group("user_id, short_name, testcase_id").
+		Scan(&mybestRows)
+	for _, v := range mybestRows {
+		data[v.TestcaseID].MyBest = v.Max
+	}
+
+	// get best of all
+	type bestType struct {
+		TestcaseID uint
+		Max        int
+	}
+	var bestRows []bestType
+	model.DB.Table("submits").
+		Select("testcase_id, MAX(score)").
+		Where("short_name = ?", prob.ShortName).
+		Group("short_name, testcase_id").
+		Scan(&bestRows)
+	fmt.Printf("%+v\n", bestRows)
+	for _, v := range bestRows {
+		data[v.TestcaseID].Best = v.Max
+	}
+
+	// set sum
+	data[0].DataID = "sum"
+	for i := 1; i <= prob.NumTestcase; i++ {
+		data[i].DataID = strconv.Itoa(i)
+		data[0].Best += data[i].Best
+		data[0].MyBest += data[i].MyBest
+	}
+
+	return c.Render(prob, data)
 }
 
 func (c App) Management() revel.Result {
@@ -230,7 +278,15 @@ func (c App) MakeDataAll(shortname string, reload string) revel.Result {
 }
 
 func (c App) Submit() revel.Result {
-	return c.Render()
+	testcaseid := c.Params.Get("testcaseid")
+	shortname := c.Params.Get("shortname")
+	if testcaseid == "" {
+		testcaseid = c.Flash.Data["testcaseid"]
+	}
+	if shortname == "" {
+		shortname = c.Flash.Data["shortname"]
+	}
+	return c.Render(testcaseid, shortname)
 }
 
 func (c App) DoSubmit() revel.Result {
@@ -310,12 +366,13 @@ func (c App) DoSubmit() revel.Result {
 	}
 
 	submit := model.Submit{
-		Username:     username,
-		ShortName:    shortname,
-		TestcaseID:   testcaseID,
-		InputFile:    input.InputFile,
-		SolutionFile: pSolution,
-		AnswerFile:   pAnswer,
+		Username:         username,
+		ShortName:        shortname,
+		TestcaseID:       testcaseID,
+		InputFile:        input.InputFile,
+		SolutionFile:     pSolution,
+		SolutionFileName: solution.Filename,
+		AnswerFile:       pAnswer,
 	}
 	if err := model.DB.Create(&submit).Error; err != nil {
 		c.Flash.Error("%v", err)
@@ -323,5 +380,136 @@ func (c App) DoSubmit() revel.Result {
 		return c.Redirect(routes.App.Submit())
 	}
 
-	return c.Redirect(routes.App.Submit())
+	return c.Redirect(routes.App.Solution(submit.ID))
+}
+
+func (c App) Solution(id uint) revel.Result {
+	var submit model.Submit
+	p := model.DB.Where("id = ?", id).First(&submit)
+	if p.RecordNotFound() {
+		return c.NotFound("Solution %s Not Found", id)
+	}
+	return c.Render(submit)
+}
+
+func (c App) Contests() revel.Result {
+	var cs []model.Contest
+	model.DB.Order("id DESC").Find(&cs)
+	type ct struct {
+		ID                       uint
+		Title, StartAt, FinishAt string
+	}
+	var contests []ct
+	for _, c := range cs {
+		contests = append(contests, ct{
+			ID:       c.ID,
+			Title:    c.Title,
+			StartAt:  c.StartAt.Format(SubmitBest.TimeFormat),
+			FinishAt: c.FinishAt.Format(SubmitBest.TimeFormat),
+		})
+	}
+	return c.Render(contests)
+}
+
+func (c App) Contest(id uint) revel.Result {
+	var contest model.Contest
+	var problems []model.Problem
+	ret := model.DB.Where("id = ?", id).First(&contest)
+	if ret.RecordNotFound() {
+		return c.NotFound("Contest %d not found.", id)
+	}
+	model.DB.Model(&contest).Related(&problems, "Problems")
+	startAt := contest.StartAt.Format(SubmitBest.TimeFormat)
+	finishAt := contest.FinishAt.Format(SubmitBest.TimeFormat)
+	return c.Render(contest, problems, startAt, finishAt)
+}
+
+type rect struct {
+	Username   string
+	ShortName  string
+	TestcaseID int
+	Max        int
+	Count      int
+}
+type rowProblemType struct {
+	Sum      int
+	Testcase []rect
+}
+type rowType struct {
+	Score    int
+	Username string
+	Problem  []rowProblemType
+}
+type boardType []rowType
+
+func (b boardType) Len() int {
+	return len(b)
+}
+func (b boardType) Less(i, j int) bool {
+	return b[i].Score < b[j].Score
+}
+func (b boardType) Swap(i, j int) {
+	b[i], b[j] = b[j], b[i]
+}
+
+func (c App) Board(id uint) revel.Result {
+	var contest model.Contest
+	var problems []model.Problem
+	ret := model.DB.Where("id = ?", id).First(&contest)
+	if ret.RecordNotFound() {
+		return c.NotFound("Contest %d not found.", id)
+	}
+	model.DB.Model(&contest).Related(&problems, "Problems")
+	problemMap := make(map[string]*model.Problem)
+	var problemNames []string
+	for _, p := range problems {
+		problemMap[p.ShortName] = &p
+		problemNames = append(problemNames, p.ShortName)
+	}
+
+	var recs []rect
+	model.DB.Table("submits").
+		Select("username, short_name, testcase_id, MAX(score), COUNT(*)").
+		Where("short_name IN (?)", problemNames).
+		//Where("? <= created_at AND created_at < ?", contest.StartAt, contest.FinishAt).
+		Group("username, short_name, testcase_id").
+		Scan(&recs)
+	type pt struct {
+		Sum int
+		T   []rect
+	}
+	type rowt struct {
+		Sum int
+		M   map[string]*pt
+	}
+	rowMap := make(map[string]rowt)
+	for _, r := range recs {
+		row, ok := rowMap[r.Username]
+		if !ok {
+			row = rowt{0, make(map[string]*pt)}
+			rowMap[r.Username] = row
+		}
+		prob, ok := row.M[r.ShortName]
+		if !ok {
+			t := problemMap[r.ShortName].NumTestcase
+			prob = &pt{0, make([]rect, t)}
+			row.M[r.ShortName] = prob
+		}
+		prob.Sum += r.Max
+		prob.T[r.TestcaseID-1] = r
+	}
+
+	var board boardType
+	for username, row := range rowMap {
+		r := rowType{0, username, make([]rowProblemType, len(problems))}
+		for i, prob := range problems {
+			r.Score += row.M[prob.ShortName].Sum
+			r.Problem[i].Sum = row.M[prob.ShortName].Sum
+			r.Problem[i].Testcase = row.M[prob.ShortName].T
+		}
+		board = append(board, r)
+	}
+	sort.Sort(board)
+
+	return c.Render(contest, problems, board)
 }

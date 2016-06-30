@@ -53,6 +53,7 @@ func judgeLoop() {
 
 	task.Score = score
 	task.Message = msg
+	task.Status = "finished"
 	for {
 		ok := Call(SubmitBest.TASKSERVER_ADDR, "TaskServer.JudgeResult",
 			JudgeResultArg{*task}, &JudgeResultReply{})

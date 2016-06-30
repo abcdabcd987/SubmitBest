@@ -30,6 +30,18 @@ func init() {
 		revel.ActionInvoker,           // Invoke the action.
 	}
 
+	revel.TemplateFuncs["myrange"] = func(a, b int) []int {
+		x := make([]int, b-a+1)
+		for i := a; i <= b; i++ {
+			x[i-a] = i
+		}
+		return x
+	}
+
+	revel.TemplateFuncs["add"] = func(a, b int) int {
+		return a + b
+	}
+
 	// register startup functions with OnAppStart
 	// ( order dependent )
 	revel.OnAppStart(initRand)

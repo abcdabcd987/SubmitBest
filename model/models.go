@@ -49,11 +49,12 @@ type Submit struct {
 	ShortName  string
 	TestcaseID int
 
-	InputFile    string
-	AnswerFile   string
-	SolutionFile string
-	Score        int
-	Message      string
+	InputFile        string
+	AnswerFile       string
+	SolutionFile     string
+	SolutionFileName string
+	Score            int
+	Message          string `gorm:"type:text"`
 
 	Status string `gorm:"default:'pending'"`
 }

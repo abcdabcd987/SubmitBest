@@ -24,13 +24,13 @@
 <h2>Test Data</h2>
 <table>
     <thead>
-        <th>
-            <td>DataID</td>
-            <td>My Best</td>
-            <td>Best of All Users</td>
-            <td>Input</td>
-            <td>Submit</td>
-        </th>
+        <tr>
+            <th>DataID</th>
+            <th>My Best</th>
+            <th>Best of All Users</th>
+            <th>Input</th>
+            <th>Submit</th>
+        </tr>
     </thead>
     <tbody>
     {{range .data}}
@@ -38,8 +38,8 @@
             <td>{{.DataID}}</td>
             <td>{{.MyBest}}</td>
             <td>{{.Best}}</td>
-            <td><a href="/input/{{$.prob.ShortName}}/{{.DataID}}.in">Download <code>{{.DataID}}.in</code></a></td>
-            <td><a href="/submit?shortname={{$.prob.ShortName}}&amp;testcaseid={{.DataID}}">Submit <code>{{.DataID}}.ans</code></a></td>
+            <td>{{if ne .DataID "sum"}}<a href="/input/{{$.prob.ShortName}}/{{.DataID}}.in">Download <code>{{.DataID}}.in</code></a>{{end}}</td>
+            <td>{{if ne .DataID "sum"}}<a href="/submit?shortname={{$.prob.ShortName}}&amp;testcaseid={{.DataID}}">Submit <code>{{.DataID}}.ans</code></a>{{end}}</td>
         </tr>
     {{end}}
     </tbody>

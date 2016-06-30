@@ -1,0 +1,16 @@
+{{set . "title" .contest.Title}}
+{{template "header.html" .}}
+
+<h1>{{.contest.Title}}</h1>
+
+<ul>
+    <li>Title: {{.contest.Title}}</li>
+    <li>StartAt: {{.startAt}}</li>
+    <li>FinishAt: {{.finishAt}}</li>
+    <li>Problems:</li>
+    <ul>
+    {{range .problems}}
+        <li><a href="/problem/{{.ShortName}}">{{.Title}}</a></li>
+    {{end}}
+    </ul>
+</ul>
