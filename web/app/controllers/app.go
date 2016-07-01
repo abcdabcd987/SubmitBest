@@ -217,7 +217,7 @@ func (c App) Problem(shortname string) revel.Result {
 		Max        int
 	}
 	var mybestRows []mybestType
-	username := c.Session["username"]
+	username := c.Session["user.name"]
 	model.DB.Table("submits").
 		Select("testcase_id, MAX(score)").
 		Where("short_name = ? AND username = ?", prob.ShortName, username).
@@ -667,7 +667,7 @@ func (c App) Status() revel.Result {
 		s, _ := strconv.Atoi(start)
 		db = db.Where("id <= ?", s)
 	}
-	db.Limit("25").Find(&table)
+	db.Limit("25").Order("id DESC").Find(&table)
 	return c.Render(table, username, shortname, testcaseid, start)
 }
 
@@ -742,7 +742,7 @@ func (b boardType) Len() int {
 	return len(b)
 }
 func (b boardType) Less(i, j int) bool {
-	return b[i].Score < b[j].Score
+	return b[i].Score > b[j].Score
 }
 func (b boardType) Swap(i, j int) {
 	b[i], b[j] = b[j], b[i]
