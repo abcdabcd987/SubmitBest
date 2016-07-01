@@ -217,11 +217,11 @@ func (c App) Problem(shortname string) revel.Result {
 		Max        int
 	}
 	var mybestRows []mybestType
-	userid, _ := strconv.Atoi(c.Session["user.id"])
+	username := c.Session["username"]
 	model.DB.Table("submits").
 		Select("testcase_id, MAX(score)").
-		Where("short_name = ? AND user_id = ?", prob.ShortName, userid).
-		Group("user_id, short_name, testcase_id").
+		Where("short_name = ? AND username = ?", prob.ShortName, username).
+		Group("username, short_name, testcase_id").
 		Scan(&mybestRows)
 	for _, v := range mybestRows {
 		data[v.TestcaseID].MyBest = v.Max
