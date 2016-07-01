@@ -198,6 +198,12 @@ func (c App) Problem(shortname string) revel.Result {
 		return c.NotFound("Problem %s Not Found", shortname)
 	}
 
+	privilege, pok := c.Session["user.privilege"]
+	if time.Now().Before(prob.SecretBefore) && (!pok || privilege != "admin") {
+		c.Flash.Error("The problem is still a secret.")
+		return c.Redirect(routes.App.Index())
+	}
+
 	type dataType struct {
 		DataID string
 		MyBest int
@@ -253,6 +259,18 @@ func (c App) DownloadInput(shortname string, tid int) revel.Result {
 	if !ok {
 		c.Flash.Error("Please Login First")
 		return c.Redirect(routes.App.Login())
+	}
+
+	var prob model.Problem
+	p := model.DB.Where("short_name = ?", shortname).First(&prob)
+	if p.RecordNotFound() {
+		return c.NotFound("Problem %s Not Found", shortname)
+	}
+
+	privilege, pok := c.Session["user.privilege"]
+	if time.Now().Before(prob.SecretBefore) && (!pok || privilege != "admin") {
+		c.Flash.Error("The problem is still a secret.")
+		return c.Redirect(routes.App.Index())
 	}
 
 	var input model.ProblemInput
