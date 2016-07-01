@@ -238,7 +238,6 @@ func (c App) Problem(shortname string) revel.Result {
 		Where("short_name = ?", prob.ShortName).
 		Group("short_name, testcase_id").
 		Scan(&bestRows)
-	fmt.Printf("%+v\n", bestRows)
 	for _, v := range bestRows {
 		data[v.TestcaseID].Best = v.Max
 	}
@@ -262,8 +261,8 @@ func (c App) DownloadInput(shortname string, tid int) revel.Result {
 	}
 
 	var prob model.Problem
-	p := model.DB.Where("short_name = ?", shortname).First(&prob)
-	if p.RecordNotFound() {
+	retp := model.DB.Where("short_name = ?", shortname).First(&prob)
+	if retp.RecordNotFound() {
 		return c.NotFound("Problem %s Not Found", shortname)
 	}
 

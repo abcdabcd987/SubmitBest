@@ -15,5 +15,5 @@ const (
 	ROOT_USER_ANSWER   = ROOT + "answer"
 	ROOT_USER_SOLUTION = ROOT + "solution"
 
-	TimeFormat = "2006-01-02 15:04:03"
+	TimeFormat = "2006-01-02 15:04:05"
 )

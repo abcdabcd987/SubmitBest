@@ -26,7 +26,6 @@ func ReadProblem(shortname string) (*model.Problem, error) {
 		return nil, err
 	}
 
-	const timeFormat = "2006-01-02 15:04:03"
 	var title string
 	var numTestcase int
 	var secretBefore time.Time
@@ -45,7 +44,7 @@ func ReadProblem(shortname string) (*model.Problem, error) {
 		case "numTestcase":
 			numTestcase, _ = strconv.Atoi(value)
 		case "secretBefore":
-			secretBefore, _ = time.Parse(timeFormat, value)
+			secretBefore, _ = time.Parse(SubmitBest.TimeFormat, value)
 		}
 	}
 
